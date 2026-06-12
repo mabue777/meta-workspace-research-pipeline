@@ -1,0 +1,124 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    //
+    // ResearchProject Rules
+    //
+    function isValidResearchProject(data) {
+      return data.keys().hasAll(['userId', 'title', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && (!('description' in data) || (data.description is string && data.description.size() <= 2000))
+        && data.createdAt is int;
+    }
+
+    match /projects/{projectId} {
+      allow read: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isValidId(projectId)
+        && isValidResearchProject(incoming())
+        && incoming().createdAt == request.time.toMillis();
+        
+      allow update: if isSignedIn()
+        && existing().userId == request.auth.uid
+        && isValidResearchProject(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description']);
+        
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    //
+    // ResearchDocument Rules
+    //
+    function isValidResearchDocument(data) {
+      return data.keys().hasAll(['projectId', 'userId', 'title', 'content', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.projectId is string && data.projectId.size() <= 128
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 500
+        && data.content is string && data.content.size() <= 500000
+        && (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() <= 2000))
+        && (!('workspaceId' in data) || (data.workspaceId is string && data.workspaceId.size() <= 500))
+        && data.createdAt is int;
+    }
+
+    match /documents/{documentId} {
+      allow read: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isValidId(documentId)
+        && isValidResearchDocument(incoming())
+        && incoming().createdAt == request.time.toMillis()
+        && exists(/databases/$(database)/documents/projects/$(incoming().projectId));
+        
+      allow update: if isSignedIn()
+        && existing().userId == request.auth.uid
+        && isValidResearchDocument(incoming())
+        && incoming().userId == existing().userId
+        && incoming().projectId == existing().projectId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'sourceUrl', 'workspaceId']);
+        
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    //
+    // VideoAnalysis Rules
+    //
+    function isValidVideoAnalysis(data) {
+      return data.keys().hasAll(['projectId', 'userId', 'videoUrl', 'summary', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.projectId is string && data.projectId.size() <= 128
+        && data.videoUrl is string && data.videoUrl.size() > 0 && data.videoUrl.size() <= 2000
+        && data.summary is string && data.summary.size() <= 500000
+        && (!('tags' in data) || (data.tags is list && data.tags.size() <= 50 && (data.tags.size() == 0 || data.tags[0] is string)))
+        && data.createdAt is int;
+    }
+
+    match /videoAnalysis/{analysisId} {
+      allow read: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn()
+        && isValidId(analysisId)
+        && isValidVideoAnalysis(incoming())
+        && incoming().createdAt == request.time.toMillis()
+        && exists(/databases/$(database)/documents/projects/$(incoming().projectId));
+        
+      allow update: if isSignedIn()
+        && existing().userId == request.auth.uid
+        && isValidVideoAnalysis(incoming())
+        && incoming().userId == existing().userId
+        && incoming().projectId == existing().projectId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['summary', 'tags']);
+        
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+  }
+}

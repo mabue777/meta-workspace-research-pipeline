@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "ResearchProject": {
+      "title": "ResearchProject",
+      "description": "A research area mapping to a broad topic",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["userId", "title", "createdAt"]
+    },
+    "ResearchDocument": {
+      "title": "ResearchDocument",
+      "description": "A processed document or finding",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "sourceUrl": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["projectId", "userId", "title", "content", "createdAt"]
+    },
+    "VideoAnalysis": {
+      "title": "VideoAnalysis",
+      "description": "Video understanding insights",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "userId": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "summary": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["projectId", "userId", "videoUrl", "summary", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/ResearchProject" },
+      "description": "Research projects owned by user"
+    },
+    "/documents/{documentId}": {
+      "schema": { "$ref": "#/entities/ResearchDocument" },
+      "description": "Documents related to a research project"
+    },
+    "/videoAnalysis/{analysisId}": {
+      "schema": { "$ref": "#/entities/VideoAnalysis" },
+      "description": "Video analyses related to a research project"
+    }
+  }
+}
